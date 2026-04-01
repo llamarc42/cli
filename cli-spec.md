@@ -736,3 +736,382 @@ These workflows may be introduced in a future milestone once:
 
 * inspecting current project context
 * understanding how the CLI resolved the project
+
+# 6. Argument Conventions
+
+## Purpose
+
+CLI arguments must behave consistently across all commands so the surface is predictable for both interactive use and automation.
+
+These conventions apply across the entire CLI unless a command explicitly documents an exception.
+
+---
+
+## General Rules
+
+### Long flags are the default
+
+Use long-form flags for all public CLI options.
+
+Examples:
+
+```text
+--session
+--name
+--non-interactive
+```
+
+Short flags are not part of the current spec milestone unless a future case is both standard and unambiguous.
+
+---
+
+### Use kebab-case for flags
+
+All public flag names must use lowercase kebab-case.
+
+Examples:
+
+```text
+--non-interactive
+--working-directory
+--output-format
+```
+
+Do not use:
+
+* camelCase
+* PascalCase
+* snake_case
+
+---
+
+### Positional arguments are allowed only for the primary target
+
+A positional argument may be used only when it represents the primary subject of the command.
+
+Examples:
+
+* chat prompt
+* session identifier or name for `sessions resume`
+* document target for `docs show`
+
+Do not use positional arguments for secondary or optional values when a flag would be clearer.
+
+---
+
+## Required vs Optional Arguments
+
+### Required arguments
+
+A required argument must be either:
+
+* a required positional target, or
+* a required flag when positional use would be unclear or ambiguous
+
+Examples:
+
+```text
+llamarc42 docs show <path|document-id>
+llamarc42 sessions resume <session-id|name>
+```
+
+If a required argument is missing, the command must fail explicitly with a usage error.
+
+---
+
+### Optional arguments
+
+Optional arguments must use flags unless they represent the omission of a required positional target that changes mode intentionally.
+
+Example:
+
+* `llamarc42 chat` with no prompt enters interactive mode
+* `llamarc42 sessions new --name architecture` uses an optional flag
+
+---
+
+## Positional Argument Rules
+
+### Rule 1: one primary positional target per command
+
+Commands should use at most one primary positional argument unless there is a very strong reason otherwise.
+
+This keeps parsing simple and avoids ambiguity.
+
+---
+
+### Rule 2: positional values must have a single meaning
+
+A positional argument may allow multiple value types only when they represent the same conceptual target.
+
+Examples:
+
+* `<session-id|name>` = session selector
+* `<path|document-id>` = document selector
+
+This is acceptable because the user is still identifying a single target.
+
+---
+
+### Rule 3: do not overload positional order
+
+Do not make argument meaning depend on position among multiple free-form values.
+
+Avoid patterns like:
+
+```text
+llamarc42 something <name> <path> <mode>
+```
+
+unless the meaning is extremely obvious and stable.
+
+---
+
+### Rule 4: prompts remain positional for `chat`
+
+For `chat`, the prompt is the primary subject of one-shot use and should remain positional.
+
+Example:
+
+```text
+llamarc42 chat "summarize the current session model"
+```
+
+This is more natural than requiring a flag like `--prompt`.
+
+---
+
+## Target Addressing Conventions
+
+The CLI currently works with these target types:
+
+* session IDs
+* session names
+* document paths
+* document identifiers
+
+These must be passed consistently.
+
+---
+
+### Session targets
+
+When a command targets a session, it should accept:
+
+```text
+<session-id|name>
+```
+
+Examples:
+
+```text
+llamarc42 sessions resume architecture
+llamarc42 sessions resume session-20260401-001
+```
+
+If a session must be specified by flag, use:
+
+```text
+--session <session-id>
+--name <session-name>
+```
+
+Rules:
+
+* `--session` means exact session identity
+* `--name` means named session resolution or creation, depending on command semantics
+* these two flags must not be combined unless a future command explicitly defines valid behavior
+
+---
+
+### Document targets
+
+When a command targets a document, it should accept:
+
+```text
+<path|document-id>
+```
+
+Examples:
+
+```text
+llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+llamarc42 docs show architecture-boundaries
+```
+
+Rules:
+
+* path resolution should be explicit and deterministic
+* document ID use is allowed only if the project defines stable identifiers
+
+---
+
+### Path arguments
+
+Paths must be passed as plain positional or flagged string values.
+
+Examples:
+
+```text
+llamarc42 docs show docs/global/principles.md
+llamarc42 --working-directory ./examples/project-a
+```
+
+Rules:
+
+* prefer relative paths where practical
+* path handling must respect the current working directory or explicitly provided working directory
+* path interpretation must be deterministic
+
+---
+
+## Flag Value Conventions
+
+### Flags with values
+
+Flags that require values must be followed by a value.
+
+Examples:
+
+```text
+--name architecture
+--session session-20260401-001
+```
+
+This spec does not require `=` syntax, though parsers may support it if implemented consistently.
+
+Canonical examples should use space-separated values.
+
+---
+
+### Boolean flags
+
+Boolean flags should be presence-based.
+
+Examples:
+
+```text
+--non-interactive
+```
+
+Avoid requiring explicit boolean values like:
+
+```text
+--non-interactive true
+```
+
+unless a future command specifically requires tri-state behavior.
+
+---
+
+## Naming Conventions for Flags
+
+Flag names should:
+
+* be descriptive
+* use stable terminology already present in the CLI
+* avoid abbreviations
+* avoid PowerShell-style parameter casing
+* avoid synonyms when one canonical term exists
+
+Prefer:
+
+```text
+--session
+--name
+--non-interactive
+```
+
+Avoid:
+
+```text
+--sess
+--session-name
+--nointeractive
+```
+
+when a shorter consistent canonical term already exists.
+
+---
+
+## Consistency Rules
+
+### Same concept, same argument form
+
+If two commands refer to the same concept, they should use the same name and shape.
+
+Examples:
+
+* session targeting should consistently use `--session` and `--name`
+* interactive suppression should consistently use `--non-interactive`
+
+---
+
+### Do not rename concepts across commands
+
+Do not vary between equivalent names such as:
+
+* `--session-id` vs `--session`
+* `--doc` vs `--document`
+* `--cwd` vs `--working-directory`
+
+Choose one canonical form and use it everywhere.
+
+---
+
+## Error Expectations
+
+Argument-related errors must be:
+
+* explicit
+* actionable
+* deterministic
+
+Examples:
+
+```text
+Error: missing required argument '<session-id|name>'.
+```
+
+```text
+Error: '--session' and '--name' cannot be used together.
+```
+
+```text
+Error: unknown option '--session-name'.
+Did you mean '--session'?
+```
+
+---
+
+## Examples
+
+### Positional prompt
+
+```text
+llamarc42 chat "summarize current docs"
+```
+
+### Optional flag
+
+```text
+llamarc42 sessions new --name architecture
+```
+
+### Session target
+
+```text
+llamarc42 sessions resume architecture
+```
+
+### Document target
+
+```text
+llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
+
+### Boolean flag
+
+```text
+llamarc42 chat --non-interactive "summarize the project"
+```
