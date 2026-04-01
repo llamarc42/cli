@@ -1115,3 +1115,374 @@ llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
 ```text
 llamarc42 chat --non-interactive "summarize the project"
 ```
+
+# 7. Shared Flags
+
+## Purpose
+
+Shared flags provide consistent behavior across all CLI commands.
+
+These flags must:
+
+* have **stable meaning across all commands**
+* behave consistently in interactive and non-interactive contexts
+* be safe for automation and scripting
+
+No command may redefine or alter the meaning of a shared flag.
+
+---
+
+## Supported Shared Flags
+
+```text
+--output <plain|json|table>
+--verbosity <quiet|normal|detailed|diagnostic>
+--working-directory <path>
+--non-interactive
+--no-color
+```
+
+---
+
+## `--output`
+
+Controls the format of command output.
+
+### Supported values
+
+```text
+plain
+json
+table
+```
+
+---
+
+### Behavior
+
+#### `plain`
+
+* default human-readable output
+* concise and structured
+* suitable for terminal usage
+
+---
+
+#### `json`
+
+* strictly machine-readable
+* must be valid JSON
+* must contain **no extra prose or formatting**
+* errors must also be returned as JSON
+
+---
+
+#### `table`
+
+* human-readable tabular output
+* used for list-style commands (e.g., `sessions list`, `docs list`)
+* must not be used for deeply nested or complex data
+
+---
+
+### Rules
+
+* commands that cannot logically produce tabular output must fail if `table` is requested
+* `json` output must be stable for scripting and automation
+* default output is `plain` unless otherwise specified
+
+---
+
+## `--verbosity`
+
+Controls the level of detail included in output.
+
+### Supported values
+
+```text
+quiet
+normal
+detailed
+diagnostic
+```
+
+---
+
+### Behavior
+
+#### `quiet`
+
+* minimal output
+* only final result or critical errors
+
+---
+
+#### `normal`
+
+* default behavior
+* user-friendly output
+
+---
+
+#### `detailed`
+
+* includes additional context
+* may include:
+
+  * selected session info
+  * resolved targets
+  * high-level processing steps
+
+---
+
+#### `diagnostic`
+
+* includes deep troubleshooting information
+* may include:
+
+  * context selection details
+  * resolution decisions
+  * internal workflow boundaries
+
+---
+
+### Rules
+
+* verbosity must not alter the **meaning** of output, only its **detail level**
+* verbosity must not break structured output (`json`)
+* diagnostic output must not expose hidden reasoning or internal chain-of-thought
+
+---
+
+## `--working-directory`
+
+Overrides the current working directory used by the CLI.
+
+```text
+--working-directory <path>
+```
+
+---
+
+### Behavior
+
+* all relative paths are resolved from this directory
+* project detection is performed relative to this directory
+* must behave as if the CLI was executed from the specified path
+
+---
+
+### Rules
+
+* path must exist
+* path must be accessible
+* failure to resolve path must produce an error
+
+---
+
+### Example
+
+```text
+llamarc42 --working-directory ./examples/project-a docs list
+```
+
+---
+
+## `--non-interactive`
+
+Forces automation-safe behavior.
+
+---
+
+### Behavior
+
+* disables all interactive prompts
+* disables REPL entry
+* requires all required inputs to be provided explicitly
+* ambiguity must result in failure
+
+---
+
+### Rules
+
+* must not prompt under any condition
+* must not fallback to interactive behavior
+* must produce deterministic results
+
+---
+
+### Example
+
+```text
+llamarc42 chat --non-interactive "summarize docs"
+```
+
+---
+
+## `--no-color`
+
+Disables colored output.
+
+---
+
+### Behavior
+
+* all output must be plain text with no ANSI color codes
+* applies to all output modes except `json` (which must already be color-free)
+
+---
+
+### Rules
+
+* must not affect output content, only presentation
+* must be respected across all commands
+
+---
+
+## Invalid Combinations
+
+### `--output json` with interactive behavior
+
+If a command would enter interactive mode:
+
+```text
+llamarc42 chat --output json
+```
+
+Behavior:
+
+* must fail
+* must not enter REPL
+
+Reason:
+
+* JSON output must be single-response and machine-readable
+
+---
+
+### `--non-interactive` with missing required input
+
+Example:
+
+```text
+llamarc42 chat --non-interactive
+```
+
+Behavior:
+
+* must fail
+* must not prompt
+
+---
+
+### `--output table` on non-tabular commands
+
+Example:
+
+```text
+llamarc42 chat --output table "summarize docs"
+```
+
+Behavior:
+
+* must fail with error
+* must explain unsupported format
+
+---
+
+### Unknown flag combinations
+
+Any unsupported combination must:
+
+* fail explicitly
+* provide actionable error message
+
+---
+
+## Command-Specific Exceptions
+
+Commands may restrict output formats where appropriate.
+
+Examples:
+
+* `chat`:
+
+  * supports: `plain`, `json`
+  * does not support: `table`
+
+* `sessions list`:
+
+  * supports: `plain`, `json`, `table`
+
+* `docs show`:
+
+  * supports: `plain`, `json`
+  * does not support: `table`
+
+These restrictions must be documented in the respective command sections.
+
+---
+
+## Error Expectations
+
+Errors related to flags must be:
+
+* explicit
+* actionable
+* consistent
+
+Examples:
+
+```text
+Error: '--output table' is not supported for command 'chat'.
+```
+
+```text
+Error: interactive mode is not allowed when '--output json' is specified.
+```
+
+```text
+Error: '--working-directory' path './missing' does not exist.
+```
+
+---
+
+## Examples
+
+### JSON output
+
+```text
+llamarc42 sessions list --output json
+```
+
+---
+
+### Diagnostic verbosity
+
+```text
+llamarc42 chat --verbosity diagnostic "explain session resolution"
+```
+
+---
+
+### Working directory override
+
+```text
+llamarc42 --working-directory ./project-a docs list
+```
+
+---
+
+### Non-interactive execution
+
+```text
+llamarc42 chat --non-interactive "summarize docs"
+```
+
+---
+
+### Disable color
+
+```text
+llamarc42 docs list --no-color
+```
