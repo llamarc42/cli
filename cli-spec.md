@@ -1486,3 +1486,462 @@ llamarc42 chat --non-interactive "summarize docs"
 ```text
 llamarc42 docs list --no-color
 ```
+
+# 8. Output Contracts
+
+## Purpose
+
+Output contracts define how the CLI communicates results in both human-readable and machine-readable forms.
+
+These contracts must remain stable enough for:
+
+* interactive terminal use
+* automation and scripting
+* tests and golden examples
+* future compatibility across surfaces
+
+Output mode changes presentation, not command meaning.
+
+---
+
+## Supported Output Modes
+
+```text
+plain
+table
+json
+```
+
+These are selected using:
+
+```text
+--output <plain|table|json>
+```
+
+If `--output` is omitted, the command uses its default output mode.
+
+---
+
+## Core Rules
+
+### Rule 1: output mode changes format, not behavior
+
+The selected output mode must not change what the command does.
+
+It may change:
+
+* formatting
+* structure
+* level of presentation detail
+
+It must not change:
+
+* target resolution
+* validation result
+* session selection behavior
+* success vs failure outcome
+
+---
+
+### Rule 2: `json` is authoritative for automation
+
+`json` output is the machine-safe format.
+
+When `--output json` is used:
+
+* output must be valid JSON
+* output must contain no prose outside the JSON document
+* logs or diagnostics must not corrupt stdout JSON output
+* errors must also be returned as structured JSON
+
+---
+
+### Rule 3: `table` is for list-oriented human output
+
+`table` is only valid when the command returns row-like data.
+
+It should be used for:
+
+* lists of sessions
+* lists of documents
+
+It should not be used for:
+
+* free-form chat responses
+* deeply nested objects
+* single-artifact content display
+
+---
+
+### Rule 4: `plain` is the default human-readable mode
+
+`plain` is the default mode unless a command explicitly defines a different default.
+
+`plain` should be:
+
+* readable in a terminal
+* concise
+* structured enough to scan quickly
+* suitable for copy/paste into notes or docs
+
+---
+
+## `plain` Output
+
+## Purpose
+
+Human-readable terminal output for everyday use.
+
+## Characteristics
+
+* concise
+* readable without requiring parsing
+* structured using headings, labels, spacing, or bullets where helpful
+* may include explanatory text appropriate for direct human consumption
+
+## Use cases
+
+* `chat`
+* `sessions show`
+* `docs show`
+* `project show`
+
+## Rules
+
+* should avoid excessive decoration
+* should not rely on color alone to convey meaning
+* should remain understandable when redirected to a file
+
+---
+
+## `table` Output
+
+## Purpose
+
+Human-readable tabular output for list-style commands.
+
+## Characteristics
+
+* column-based
+* easy to scan
+* optimized for comparing multiple items
+
+## Use cases
+
+* `sessions list`
+* `docs list`
+
+## Rules
+
+* must use stable column meanings for a given command
+* columns may evolve only deliberately and with care
+* should not be used when the command returns a single object or free-form text
+* if the command does not support tabular output, requesting `table` must fail explicitly
+
+## Minimum expectation
+
+Each tabular command should define:
+
+* its core columns
+* the meaning of those columns
+* whether optional columns may appear under higher verbosity
+
+---
+
+## `json` Output
+
+## Purpose
+
+Machine-readable output for scripting, testing, and integration.
+
+## Characteristics
+
+* valid JSON only
+* deterministic structure
+* no extra prose
+* no ANSI color
+* safe for piping to other tools
+
+## Rules
+
+* output must be a single JSON document
+* field names should be stable once published
+* object structure should be intentional and versionable
+* `json` mode must remain usable even when verbosity changes
+* if diagnostic information is emitted, it must not corrupt stdout JSON output
+
+## Recommended shape
+
+Command output in JSON mode should generally be shaped as:
+
+```json
+{
+  "command": "sessions list",
+  "status": "success",
+  "data": {}
+}
+```
+
+For list commands:
+
+```json
+{
+  "command": "docs list",
+  "status": "success",
+  "data": {
+    "items": []
+  }
+}
+```
+
+For single-target commands:
+
+```json
+{
+  "command": "project show",
+  "status": "success",
+  "data": {
+    "project": {}
+  }
+}
+```
+
+This is a recommended consistency pattern for the CLI as a whole.
+
+---
+
+## Default Output by Command Type
+
+### Conversational commands
+
+Examples:
+
+* `chat`
+
+Default output:
+
+* `plain`
+
+Supported output:
+
+* `plain`
+* `json`
+
+Not supported:
+
+* `table`
+
+---
+
+### List commands
+
+Examples:
+
+* `sessions list`
+* `docs list`
+
+Default output:
+
+* `table`
+
+Supported output:
+
+* `plain`
+* `table`
+* `json`
+
+---
+
+### Single-artifact inspection commands
+
+Examples:
+
+* `sessions show`
+* `docs show`
+* `project show`
+
+Default output:
+
+* `plain`
+
+Supported output:
+
+* `plain`
+* `json`
+
+Not supported:
+
+* `table`
+
+---
+
+## Structured Error Output in `json` Mode
+
+When `--output json` is used and the command fails, the CLI must return a structured JSON error object.
+
+### Rules
+
+* no extra prose outside JSON
+* error output must be valid JSON
+* error object must be stable enough for automation
+* command failures must still use non-zero exit codes
+
+### Recommended shape
+
+```json
+{
+  "command": "sessions resume",
+  "status": "error",
+  "error": {
+    "code": "session_ambiguous",
+    "message": "Session name 'architecture' is ambiguous.",
+    "details": {
+      "matches": [
+        {
+          "id": "session-20260401-001",
+          "name": "architecture"
+        },
+        {
+          "id": "session-20260329-004",
+          "name": "architecture"
+        }
+      ]
+    },
+    "suggestion": "Re-run with a session ID."
+  }
+}
+```
+
+### Error fields
+
+Recommended common fields:
+
+* `code` — stable machine-readable error code
+* `message` — human-readable summary
+* `details` — structured context where appropriate
+* `suggestion` — actionable remediation guidance where appropriate
+
+---
+
+## Output Stability Guidance
+
+### Human-readable modes
+
+`plain` and `table` should be stable enough for users, but may evolve for clarity over time.
+
+They are not the preferred parsing surface for automation.
+
+### Machine-readable mode
+
+`json` is the preferred automation contract and should be treated as the stable integration surface.
+
+Any breaking change to JSON structure should be deliberate and documented.
+
+---
+
+## Command Support Matrix
+
+| Command              | Default | Supported                |
+| -------------------- | ------- | ------------------------ |
+| `chat`               | `plain` | `plain`, `json`          |
+| `sessions list`      | `table` | `plain`, `table`, `json` |
+| `sessions new`       | `plain` | `plain`, `json`          |
+| `sessions resume`    | `plain` | `plain`, `json`          |
+| `sessions show`      | `plain` | `plain`, `json`          |
+| `sessions summarize` | `plain` | `plain`, `json`          |
+| `docs list`          | `table` | `plain`, `table`, `json` |
+| `docs show`          | `plain` | `plain`, `json`          |
+| `project show`       | `plain` | `plain`, `json`          |
+
+---
+
+## Canonical Examples
+
+### Plain output example
+
+```text
+Session: architecture
+Id: session-20260401-001
+Last Active: 2026-04-01T09:12:00
+Summary: Working through CLI spec issues.
+```
+
+---
+
+### Table output example
+
+```text
+ID                    NAME           LAST ACTIVE
+session-20260401-001  architecture   2026-04-01T09:12:00
+session-20260329-004  docs           2026-03-29T16:48:00
+```
+
+---
+
+### JSON success example
+
+```json
+{
+  "command": "docs list",
+  "status": "success",
+  "data": {
+    "items": [
+      {
+        "path": "global/principles.md",
+        "exists": true
+      },
+      {
+        "path": "projects/llamarc42/architecture/boundaries.md",
+        "exists": true
+      }
+    ]
+  }
+}
+```
+
+---
+
+### JSON error example
+
+```json
+{
+  "command": "docs show",
+  "status": "error",
+  "error": {
+    "code": "document_not_found",
+    "message": "Document 'architecture.md' was not found.",
+    "details": {},
+    "suggestion": "Use 'llamarc42 docs list' to inspect available documents."
+  }
+}
+```
+
+---
+
+## Invalid Output Requests
+
+If a user requests an unsupported output mode for a command, the command must fail explicitly.
+
+Example:
+
+```text
+Error: '--output table' is not supported for command 'chat'.
+```
+
+JSON mode equivalent:
+
+```json
+{
+  "command": "chat",
+  "status": "error",
+  "error": {
+    "code": "unsupported_output_mode",
+    "message": "'table' output is not supported for command 'chat'.",
+    "details": {
+      "requested": "table",
+      "supported": ["plain", "json"]
+    },
+    "suggestion": "Use '--output plain' or '--output json'."
+  }
+}
+```
