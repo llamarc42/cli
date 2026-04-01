@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft — in progress (Issue 1–2 complete)
+Draft — in progress (Issue 1–3 complete, review deferred)
 
 ---
 
@@ -74,7 +74,6 @@ Not:
 ```text
 llamarc42 chat
 llamarc42 sessions
-llamarc42 review
 llamarc42 docs
 llamarc42 project
 llamarc42 help
@@ -92,10 +91,6 @@ Primary conversational workflow.
 ### `sessions`
 
 Session lifecycle and continuity.
-
-### `review`
-
-Artifact-focused review workflows.
 
 ### `docs`
 
@@ -117,7 +112,7 @@ CLI version output.
 
 ## Command Design Rules
 
-### A command is top-level only if
+### A command is top-level only if:
 
 * represents a primary user workflow
 * has a clear responsibility boundary
@@ -126,7 +121,7 @@ CLI version output.
 
 ---
 
-### A command is NOT top-level if
+### A command is NOT top-level if:
 
 * it exposes internal concepts (retrieval, prompt, etc.)
 * it supports another workflow
@@ -147,6 +142,22 @@ CLI version output.
 
 ---
 
+## Deferred Commands
+
+### `review`
+
+**Reason:**
+
+* not currently a first-class workflow in PowerShell or documented system behavior
+* can be performed via `chat` using prompt-based interaction
+* introducing it now would create new behavior at the CLI layer
+
+**Future consideration:**
+
+* may be introduced once review workflows are formalized in Core and PowerShell
+
+---
+
 ## Naming Rules
 
 * lowercase only
@@ -164,7 +175,6 @@ llamarc42 chat
 llamarc42 chat "summarize the retrieval design"
 
 llamarc42 sessions list
-llamarc42 review adr 001
 llamarc42 docs validate
 llamarc42 project show
 ```
@@ -204,7 +214,7 @@ llamarc42 chat --session <session-id>
 
 Triggered when:
 
-* positional prompt is provided, OR
+* positional prompt is provided
 * stdin is piped
 
 Behavior:
@@ -239,7 +249,7 @@ If:
 * no stdin
 * non-interactive environment
 
-→ fail with error
+→ fail with explicit error
 
 ---
 
@@ -252,7 +262,7 @@ If:
 
 ### Precedence
 
-```text
+```
 positional argument > stdin
 ```
 
@@ -283,7 +293,7 @@ If both are present:
 
 ### Invalid combination
 
-```text
+```
 --session + --name → error
 ```
 
@@ -291,17 +301,17 @@ If both are present:
 
 ## Default Session Behavior
 
-### One-shot (prompt or piped input)
+### One-shot
 
-* use **new isolated session context**
-* do NOT reuse previous session
+* uses new isolated session context
+* does NOT reuse previous session
 
 ---
 
-### Interactive mode
+### Interactive
 
-* resume last active session if exists
-* otherwise create new session
+* resumes last active session if available
+* otherwise creates new session
 
 ---
 
@@ -309,12 +319,13 @@ If both are present:
 
 ### Interactive
 
-* may prompt user to select
+* may display matches and allow selection
 
 ### Non-interactive
 
 * must fail
 * must not prompt
+* must display matches
 
 ---
 
@@ -341,8 +352,6 @@ echo "summarize" | llamarc42 chat
 
 Forces automation-safe mode.
 
-Rules:
-
 * no prompts
 * no REPL
 * ambiguity = error
@@ -363,47 +372,9 @@ Rules:
 
 ### Interactive
 
-* no input
 * terminal session
-* resumes last session or creates new
+* resumes or creates session
 * continuous interaction
-
----
-
-## Errors
-
-Must be:
-
-* explicit
-* actionable
-* deterministic
-
----
-
-## Examples
-
-```text
-llamarc42 chat "summarize session model"
-
-llamarc42 chat --name architecture "compare ADR patterns"
-
-llamarc42 chat --session session-001 "continue discussion"
-
-llamarc42 chat
-
-git diff | llamarc42 chat
-```
-
----
-
-## Current Coverage
-
-✔ Command hierarchy defined
-✔ Chat command fully specified
-
----
-
-Here is your **updated `Sessions` section** with the refined ambiguity behavior integrated cleanly into the spec.
 
 ---
 
@@ -412,14 +383,6 @@ Here is your **updated `Sessions` section** with the refined ambiguity behavior 
 ## Purpose
 
 `llamarc42 sessions` provides lifecycle management for persisted conversation sessions.
-
-Sessions enable:
-
-* conversation continuity
-* resumable workflows
-* structured history and summarization
-
-This command group is responsible for **managing sessions**, not executing chat behavior.
 
 ---
 
@@ -441,320 +404,88 @@ llamarc42 sessions summarize <session-id|name>
 
 Each session has:
 
-* a **unique system-generated ID** (primary identifier)
-* an optional **user-defined name** (not guaranteed unique)
+* unique system ID
+* optional name (not guaranteed unique)
 
 ---
 
-## Identity Resolution Rules
+## Identity Resolution
 
-### Session ID
-
-* always unique
-* resolves exactly one session
-* preferred for automation and scripting
-
----
-
-### Session Name
-
-* may not be unique
-* resolves:
-
-  * exactly one → success
-  * none → not found error
-  * multiple → ambiguous
-
----
-
-## Target Resolution Behavior
-
-Commands accepting `<session-id|name>` must resolve targets using:
-
-1. exact ID match
-2. name match
-
----
-
-### Resolution outcomes
-
-| Condition             | Result    |
-| --------------------- | --------- |
-| exact ID match        | success   |
-| single name match     | success   |
-| no match              | error     |
-| multiple name matches | ambiguous |
+| Input           | Behavior    |
+| --------------- | ----------- |
+| ID              | exact match |
+| name (1 match)  | success     |
+| name (0)        | error       |
+| name (multiple) | ambiguous   |
 
 ---
 
 ## Ambiguity Handling
 
-If a session name matches multiple sessions, the CLI must surface the matching sessions.
+### Interactive
 
-### Interactive mode
+* display matches
+* allow selection
 
-* display matching sessions
-* may allow the user to choose one interactively
-* selection should be simple and deterministic (e.g., numbered list)
+### Non-interactive
 
-Example:
-
-```text
-Session name 'architecture' matched multiple sessions:
-
-1. session-20260401-001  architecture  last active: 2026-04-01 09:12
-2. session-20260329-004  architecture  last active: 2026-03-29 16:48
-
-Select a session by number:
-```
-
----
-
-### Non-interactive mode
-
-* display matching sessions
-* must not prompt
-* must fail with an ambiguity error
-* must instruct the user to re-run with a session ID
-
-Example:
-
-```text
-Error: session name 'architecture' is ambiguous.
-
-Matches:
-- session-20260401-001  architecture  last active: 2026-04-01 09:12
-- session-20260329-004  architecture  last active: 2026-03-29 16:48
-
-Re-run with a session ID:
-llamarc42 sessions resume session-20260401-001
-```
+* display matches
+* fail
+* instruct to use ID
 
 ---
 
 ## Subcommands
 
----
-
 ### `sessions list`
 
-Lists all known sessions for the current project.
-
-#### Behavior
-
-* returns all sessions
-* includes:
-
-  * session ID
-  * name (if present)
-  * created timestamp
-  * last activity timestamp
-  * summary (if available)
-
-#### Output
-
-* default: table
-* supports: json, plain
+* lists sessions
+* default output: table
 
 ---
 
 ### `sessions new`
 
-Creates a new session.
-
-```text
-llamarc42 sessions new
-llamarc42 sessions new --name architecture
-```
-
-#### Behavior
-
-* creates a new session
-* optionally assigns a name
-* becomes the current session for subsequent interactive use
-
-#### Rules
-
-* name is optional
-* name is not required to be unique
+* creates session
+* optional name
+* becomes active session
 
 ---
 
 ### `sessions resume`
 
-Resumes a session and enters interactive chat mode.
-
-```text
-llamarc42 sessions resume <session-id|name>
-```
-
-#### Behavior
-
-* resolves target session
-* enters interactive chat mode
-* behaves as if:
-
-```text
-llamarc42 chat --session <resolved-id>
-```
-
-#### Rules
-
-* must resolve exactly one session
-* ambiguity handled per standard rules
+* resolves session
+* enters interactive chat
+* equivalent to `chat --session`
 
 ---
 
 ### `sessions show`
 
-Displays session metadata and summary.
-
-```text
-llamarc42 sessions show <session-id|name>
-```
-
-#### Behavior
-
-* resolves session
-* displays:
-
-  * ID
-  * name
-  * timestamps
-  * summary (if available)
-  * basic metadata
-
-#### Does NOT:
-
-* display full message history (future consideration)
+* displays metadata and summary
 
 ---
 
 ### `sessions summarize`
 
-Generates or displays a structured summary for a session.
-
-```text
-llamarc42 sessions summarize <session-id|name>
-```
-
-#### Behavior
-
-* resolves session
-* triggers summary generation if needed
-* returns structured summary
-
-#### Notes
-
-* summary is:
-
-  * lossy
-  * structured
-  * separate from raw message history
+* generates or returns summary
 
 ---
 
-## Relationship to `chat`
-
-* `sessions` manages session lifecycle
-* `chat` performs conversational execution
-
-### Equivalent behavior
-
-```text
-llamarc42 sessions resume <id>
-```
-
-is equivalent to:
-
-```text
-llamarc42 chat --session <id>
-```
-
-(with interactive mode)
-
----
-
-## Interaction with Persistence
-
-Sessions are:
+## Persistence
 
 * project-scoped
 * stored locally
-* persisted as append-only history (`messages.jsonl`)
-* optionally accompanied by summary artifacts
-
-The CLI must:
-
-* not expose storage internals directly
-* operate through defined session interfaces
-* avoid modifying history outside defined workflows
-
----
-
-## Error Conditions
-
-### Not found
-
-```text
-Error: session 'xyz' was not found.
-```
-
----
-
-### Ambiguous
-
-(see Ambiguity Handling section above)
-
----
-
-### Invalid input
-
-* missing required argument
-* invalid combinations
+* append-only history
+* summaries separate from raw data
 
 ---
 
 ## Examples
 
-### List sessions
-
 ```text
 llamarc42 sessions list
-```
-
----
-
-### Create session
-
-```text
-llamarc42 sessions new
 llamarc42 sessions new --name architecture
-```
-
----
-
-### Resume session
-
-```text
 llamarc42 sessions resume architecture
-llamarc42 sessions resume session-20260401-001
-```
-
----
-
-### Show session
-
-```text
 llamarc42 sessions show architecture
 ```
-
----
-
-### Summarize session
-
-```text
-llamarc42 sessions summarize architecture
-```
-
----
