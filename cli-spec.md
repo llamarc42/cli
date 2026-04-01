@@ -489,3 +489,250 @@ llamarc42 sessions new --name architecture
 llamarc42 sessions resume architecture
 llamarc42 sessions show architecture
 ```
+
+Perfect — here is the **clean, updated spec section** for Issue 6 with:
+
+* `validate` removed
+* `new` deferred
+* clear boundaries
+* explicit deferral notes
+
+This drops directly into your `cli-spec.md`.
+
+---
+
+# 4. Docs Command
+
+## Purpose
+
+`llamarc42 docs` provides inspection workflows for project documentation.
+
+This command group is responsible for helping a developer understand:
+
+* what documentation is available
+* what a specific document contains
+
+`docs` operates on documentation artifacts as the source of truth.
+
+It does **not** perform validation, scaffolding, conversational analysis, or modification of documentation.
+
+---
+
+## Command Forms
+
+```text
+llamarc42 docs list
+llamarc42 docs show <path|document-id>
+```
+
+---
+
+## Responsibility Boundary
+
+### `docs` owns
+
+* listing known documentation artifacts
+* showing a specific documentation artifact
+
+### `docs` does not own
+
+* documentation validation
+* documentation scaffolding
+* project configuration reporting
+* session operations
+* conversational workflows
+* modification of documentation files
+
+---
+
+## `docs list`
+
+Lists documentation artifacts known to the current project.
+
+### Behavior
+
+* returns documentation files discoverable within the project scope
+* helps the developer understand available source-of-truth artifacts
+
+### Minimum reported fields
+
+* document identifier or relative path
+* existence status
+
+### Output
+
+* default: table
+* supports: plain, json
+
+---
+
+## `docs show`
+
+Displays the contents of a specific document.
+
+```text
+llamarc42 docs show <path|document-id>
+```
+
+### Accepted target forms
+
+* relative path
+* document identifier (if defined by project)
+
+### Behavior
+
+* resolves the target document
+* prints document contents in a readable form
+* must fail explicitly if the target cannot be resolved
+
+### Resolution rules
+
+1. exact path match
+2. exact document identifier match
+3. otherwise fail
+
+---
+
+## Docs Examples
+
+### List docs
+
+```text
+llamarc42 docs list
+```
+
+### Show a document
+
+```text
+llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
+
+---
+
+# 5. Project Command
+
+## Purpose
+
+`llamarc42 project` provides inspection workflows for the current project.
+
+This command group is responsible for helping a developer understand:
+
+* what project is currently active
+* how the CLI has resolved the project context
+
+`project` operates at the project boundary, not the document boundary.
+
+---
+
+## Command Forms
+
+```text
+llamarc42 project show
+```
+
+---
+
+## Responsibility Boundary
+
+### `project` owns
+
+* displaying current project metadata
+* reporting resolved project paths and context
+
+### `project` does not own
+
+* documentation inspection (beyond reporting paths)
+* session operations
+* conversational workflows
+* validation of project structure (in this milestone)
+* project scaffolding
+
+---
+
+## `project show`
+
+Displays the currently resolved project and its key metadata.
+
+```text
+llamarc42 project show
+```
+
+### Behavior
+
+* reports the current project context
+* shows key paths and detected structure used by the CLI
+* helps the developer confirm that the CLI is operating against the intended project
+
+### Minimum reported fields
+
+* project root path
+* documentation root path (if detected)
+* project identification (if available)
+
+### Output
+
+* default: plain
+* supports: json
+
+---
+
+## Project Examples
+
+### Show current project
+
+```text
+llamarc42 project show
+```
+
+---
+
+# Deferred Workflows
+
+The following commands are intentionally deferred until the canonical project model is defined in Core and aligned across all surfaces:
+
+### Documentation workflows
+
+* `llamarc42 docs validate`
+* `llamarc42 docs new`
+
+### Project workflows
+
+* `llamarc42 project validate`
+* `llamarc42 project new`
+
+---
+
+## Reason for Deferral
+
+These commands depend on a formal definition of:
+
+* canonical project structure
+* required vs optional documentation artifacts
+* validation rules
+* scaffolding/templates
+
+These behaviors belong to Core and must be defined there before being exposed in the CLI.
+
+---
+
+## Future Consideration
+
+These workflows may be introduced in a future milestone once:
+
+* the project model is explicitly defined
+* PowerShell and CLI behavior are aligned
+* validation and scaffolding rules are stable
+
+---
+
+## Boundary Between `docs` and `project`
+
+### Use `docs` when:
+
+* inspecting documentation artifacts
+* viewing document contents
+
+### Use `project` when:
+
+* inspecting current project context
+* understanding how the CLI resolved the project
