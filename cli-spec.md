@@ -2,7 +2,30 @@
 
 ## Status
 
-Draft — in progress (Issue 1–3 complete, review deferred)
+Draft — in progress
+
+---
+
+## Scope and Deferred Workflows
+
+This specification defines the initial CLI surface for llamarc42 based on current, well-understood workflows.
+
+The CLI is intentionally **narrow in scope** for this milestone.
+
+The following capabilities are **deferred or absorbed** and are not exposed as first-class commands:
+
+* review workflows → currently handled via `chat`
+* retrieval/context inspection → surfaced via verbosity (`--verbosity detailed|diagnostic`)
+* validation workflows → deferred until the canonical project model is defined in Core
+* scaffolding/bootstrap workflows → deferred until project structure and templates are formalized
+
+These areas will be revisited in a future milestone once:
+
+* Core behavior is defined and stable
+* PowerShell and CLI surfaces are aligned
+* architectural boundaries are validated
+
+This approach ensures the CLI evolves existing capabilities rather than introducing new behavior prematurely.
 
 ---
 
@@ -3676,4 +3699,267 @@ FLAGS
 
 EXAMPLES
   llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
+
+# 14. PowerShell-to-CLI Mapping
+
+## Purpose
+
+This section maps current PowerShell-oriented workflows to the future CLI surface.
+
+The goal is to ensure the CLI:
+
+* evolves existing capabilities rather than inventing a competing workflow model
+* preserves architectural boundaries
+* avoids leaking PowerShell verb-noun naming into the public CLI surface
+
+This mapping is workflow-oriented, not cmdlet-oriented.
+
+---
+
+## Mapping Principles
+
+### Workflow parity over cmdlet parity
+
+The CLI should map to user workflows that already exist in practice, not mirror PowerShell command names directly.
+
+### Core owns logic
+
+If a PowerShell surface currently performs logic that belongs in Core, the CLI must not duplicate that logic. Both surfaces should converge on shared Core behavior over time.
+
+### Defer where behavior is not yet formalized
+
+If a PowerShell workflow is implied, ad hoc, or not yet formalized in Core, the CLI should defer or absorb it into an existing workflow rather than invent a new top-level command.
+
+### No PowerShell naming leakage
+
+The CLI must not expose public command names like verb-noun cmdlets. It should use workflow language such as `chat`, `sessions`, `docs`, and `project`.
+
+---
+
+## Current Workflow Mapping
+
+| Current workflow / concept                          | CLI surface                                  | Status           | Notes                                                              |
+| --------------------------------------------------- | -------------------------------------------- | ---------------- | ------------------------------------------------------------------ |
+| Architectural planning in a chat-style workflow     | `llamarc42 chat`                             | mapped           | Primary one-shot or interactive conversation workflow              |
+| Conversation continuity / prolonged working session | `llamarc42 sessions` + `llamarc42 chat`      | mapped           | Session lifecycle stays distinct from chat execution               |
+| Inspect documentation artifacts                     | `llamarc42 docs list`, `llamarc42 docs show` | mapped           | Inspection only in current milestone                               |
+| Inspect current project context                     | `llamarc42 project show`                     | mapped           | Inspection only in current milestone                               |
+| Review / drift detection workflow                   | `llamarc42 chat`                             | absorbed for now | Deliberately not a first-class top-level command in this milestone |
+| Validation of project/doc model                     | deferred                                     | deferred         | Depends on canonical Core project model                            |
+| Scaffolding / project bootstrap                     | deferred                                     | deferred         | Depends on canonical Core project model                            |
+| Retrieval/context explainability                    | `--verbosity diagnostic`                     | absorbed for now | No top-level `context` command in this milestone                   |
+
+---
+
+## Mapped Workflows
+
+### 1. Architectural planning
+
+The current documented planning workflow is a chat-style interaction grounded in global and project artifacts, including architecture and decisions. That maps directly to:
+
+```text
+llamarc42 chat
+llamarc42 chat "<prompt>"
+```
+
+This is consistent with the documented “Architectural Planning (Chat UI)” scenario and its retrieval-first constraints.
+
+---
+
+### 2. Conversation continuity
+
+The documented notes emphasize that continuity should come from retrieval rather than tool-specific memory, but the CLI still needs explicit session lifecycle behavior for local developer use. That maps to:
+
+```text
+llamarc42 sessions list
+llamarc42 sessions new
+llamarc42 sessions resume
+llamarc42 sessions show
+llamarc42 sessions summarize
+```
+
+and interactive execution remains under:
+
+```text
+llamarc42 chat
+```
+
+This preserves the boundary:
+
+* `sessions` manages continuity
+* `chat` performs execution
+
+---
+
+### 3. Documentation inspection
+
+The project is documentation-driven and treats documentation artifacts as source of truth. That maps to:
+
+```text
+llamarc42 docs list
+llamarc42 docs show <path|document-id>
+```
+
+This keeps the current milestone at inspection-only scope and avoids prematurely inventing validation or scaffolding behavior.
+
+---
+
+### 4. Project inspection
+
+The CLI needs a lightweight way to show the currently resolved project context. That maps to:
+
+```text
+llamarc42 project show
+```
+
+This is intentionally narrow in the current milestone.
+
+---
+
+## Absorbed / Deferred Workflows
+
+### Review / drift detection
+
+The notes describe review/drift detection as a real workflow, but in the current CLI spec it should remain under `chat`, not a separate `review` top-level command. The documented scenario shows review as a prompt-driven workflow grounded in retrieved constraints, boundaries, ADRs, tradeoffs, and risks.
+
+Current CLI treatment:
+
+```text
+llamarc42 chat "review this change ..."
+```
+
+Reason for deferral as a first-class command:
+
+* not yet formalized as a stable Core workflow
+* would risk creating new product behavior in the CLI surface
+* should be revisited when Core and PowerShell are aligned
+
+---
+
+### Context / explainability
+
+The notes make explainability important, especially around retrieval selection and bounded behavior. They also explicitly distinguish what artifacts are included or excluded by intent.
+
+Current CLI treatment:
+
+* no top-level `context` command
+* explainability is surfaced through:
+
+  * `--verbosity detailed`
+  * `--verbosity diagnostic`
+
+Reason:
+
+* keeps retrieval inspectable without elevating internal concepts into the top-level command tree
+
+---
+
+### Validation and scaffolding
+
+Commands such as:
+
+* `llamarc42 docs validate`
+* `llamarc42 docs new`
+* `llamarc42 project validate`
+* `llamarc42 project new`
+
+remain deferred.
+
+Reason:
+
+* they depend on a canonical Core definition of project shape, required artifacts, and bootstrap rules
+* specifying them now would force CLI-led architecture instead of Core-led architecture
+
+---
+
+## No Direct One-to-One Requirement
+
+There is intentionally **no requirement** that every PowerShell function or script workflow map to a CLI command.
+
+Some PowerShell behaviors may remain:
+
+* internal implementation details
+* transitional wrappers
+* Core-facing helpers
+* deferred workflows not yet ready for public CLI exposure
+
+This is acceptable as long as:
+
+* the public CLI surface stays coherent
+* behavior is not duplicated across layers
+* PowerShell and CLI converge on shared Core logic over time
+
+---
+
+## Surface vs Core Responsibilities
+
+### CLI surface owns
+
+* parsing commands and flags
+* shaping user-facing input/output
+* interactive vs non-interactive behavior
+* presenting errors, ambiguity, help, and examples
+
+### Core owns
+
+* retrieval behavior
+* session persistence logic
+* project recognition/model rules
+* future validation/scaffolding behavior
+* any reusable workflow semantics shared across surfaces
+
+### PowerShell surface
+
+PowerShell should ultimately align with the same Core behaviors as the CLI, even if the current PowerShell shape differs.
+
+---
+
+## Intentionally Hidden or Deferred Implementation-Specific Concepts
+
+The following are intentionally not exposed as first-class CLI workflows in this milestone:
+
+* internal retrieval pipeline stages
+* prompt construction internals
+* storage implementation details
+* model/provider selection mechanics
+* PowerShell-specific helper names
+* review as a top-level command
+* context as a top-level command
+* validation/scaffolding commands before Core formalization
+
+---
+
+## Examples
+
+### Mapped planning workflow
+
+```text
+llamarc42 chat "Should we split the ingestion pipeline into a separate service?"
+```
+
+### Mapped continuity workflow
+
+```text
+llamarc42 sessions new --name architecture
+llamarc42 chat --name architecture
+```
+
+### Mapped docs inspection workflow
+
+```text
+llamarc42 docs list
+llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
+
+### Mapped project inspection workflow
+
+```text
+llamarc42 project show
+```
+
+### Review workflow absorbed into chat
+
+```text
+llamarc42 chat "Review this change for architectural drift."
 ```
