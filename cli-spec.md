@@ -4216,3 +4216,279 @@ Result:
 ```text
 Error: no prompt provided and interactive mode is disabled.
 ```
+
+# 16. Architecture Boundaries for CLI Implementers
+
+## Purpose
+
+This section defines the architectural constraints that must be followed when implementing the CLI.
+
+The CLI is a **surface layer only**.
+It must not introduce new system behavior or duplicate logic that belongs in Core.
+
+These rules ensure:
+
+* consistency across all surfaces (CLI, PowerShell, future API/UI)
+* maintainability and testability
+* alignment with the documentation-driven system design
+
+---
+
+## Core Principle
+
+> The CLI is a **presentation and interaction layer**, not a logic layer.
+
+---
+
+## Responsibilities by Layer
+
+### CLI (Surface Layer)
+
+The CLI is responsible for:
+
+* parsing commands and arguments
+* handling input modes (interactive vs non-interactive)
+* enforcing argument conventions
+* formatting output (`plain`, `table`, `json`)
+* handling verbosity and diagnostics presentation
+* rendering errors and exit codes
+* invoking Core functionality
+
+The CLI must not contain business logic.
+
+---
+
+### Core (System Layer)
+
+Core is responsible for:
+
+* retrieval behavior and context selection
+* session lifecycle and persistence
+* project recognition and structure rules
+* document discovery and resolution logic
+* ambiguity detection and resolution rules
+* validation and future scaffolding logic
+* any shared behavior across surfaces
+
+All reusable logic must live in Core.
+
+---
+
+### PowerShell Surface
+
+PowerShell should:
+
+* converge toward the same Core behaviors as the CLI
+* not diverge into a separate logic system
+* act as an alternative surface, not a separate implementation
+
+---
+
+## What Must NOT Be Implemented in the CLI
+
+The CLI must not implement:
+
+### Retrieval logic
+
+* document selection rules
+* context ranking or filtering
+* retrieval explainability decisions
+
+These must come from Core.
+
+---
+
+### Session logic
+
+* session persistence format
+* session state management
+* summary generation
+
+The CLI may trigger these operations but must not implement them.
+
+---
+
+### Project model rules
+
+* what defines a valid project
+* required vs optional documentation
+* project structure rules
+
+These belong to Core and are currently deferred.
+
+---
+
+### Validation logic
+
+* document validation rules
+* project validation rules
+
+The CLI may expose validation commands in the future, but the logic must reside in Core.
+
+---
+
+### Scaffolding or generation
+
+* project creation
+* document templates
+
+These are future Core capabilities.
+
+---
+
+### Business rules or decision logic
+
+* choosing between multiple valid options automatically
+* interpreting ambiguous targets beyond Core-defined behavior
+
+The CLI must rely on Core for decisions and only handle presentation.
+
+---
+
+## Retrieval and Explainability Constraints
+
+The system is retrieval-based and documentation-driven.
+
+The CLI must:
+
+* treat retrieved artifacts as the source of truth
+* not bypass retrieval rules
+* not introduce alternate context selection paths
+
+Explainability (via verbosity) must:
+
+* reflect Core decisions
+* describe visible behavior
+* remain deterministic and inspectable
+
+The CLI must not expose:
+
+* hidden reasoning
+* internal prompt construction
+* chain-of-thought
+
+---
+
+## Session Constraints
+
+Sessions are:
+
+* project-scoped
+* persisted locally
+* append-only
+
+The CLI must:
+
+* treat sessions as opaque identifiers managed by Core
+* not manipulate session storage directly
+* not infer session behavior outside defined commands
+
+---
+
+## Error and Ambiguity Handling
+
+The CLI must:
+
+* detect user input issues (usage errors)
+* delegate resolution logic to Core where appropriate
+* apply consistent ambiguity and error presentation rules
+
+The CLI must not:
+
+* resolve ambiguity silently
+* invent fallback behavior not defined in Core
+
+---
+
+## Output Constraints
+
+The CLI must:
+
+* format output according to defined output contracts
+* ensure JSON output remains machine-safe
+* ensure verbosity does not alter result meaning
+
+The CLI must not:
+
+* embed logic into output formatting
+* alter data structures beyond presentation
+
+---
+
+## Implementer Checklist
+
+Before implementing any feature, verify:
+
+### 1. Does this belong in Core?
+
+* Does it involve logic, rules, or decisions?
+* Is it reusable across surfaces?
+
+If yes → implement in Core, not CLI.
+
+---
+
+### 2. Is the CLI only orchestrating?
+
+* parsing input
+* calling Core
+* formatting output
+
+If no → redesign.
+
+---
+
+### 3. Is any behavior being invented?
+
+* not in spec
+* not in Core
+* not in PowerShell workflows
+
+If yes → stop and resolve before implementation.
+
+---
+
+### 4. Is output purely presentation?
+
+* no logic embedded
+* no hidden transformations
+
+---
+
+### 5. Is ambiguity handled correctly?
+
+* interactive → allow selection
+* non-interactive → fail
+
+---
+
+### 6. Is JSON output clean?
+
+* no extra text
+* valid structure
+* stable shape
+
+---
+
+## Anti-Patterns to Avoid
+
+* duplicating Core logic in CLI
+* embedding retrieval decisions in CLI
+* adding “smart” CLI-only features
+* silently resolving ambiguity
+* mixing logs into structured output
+* introducing new workflows not in the spec
+
+---
+
+## Architectural Guardrails
+
+If a proposed CLI feature:
+
+* requires defining new rules
+* requires interpreting project structure
+* requires deciding between multiple valid options
+
+Then:
+
+> it is a Core concern, not a CLI concern
