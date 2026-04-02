@@ -3219,3 +3219,461 @@ Matches:
   }
 }
 ```
+
+# 13. Help System
+
+## Purpose
+
+The CLI help system provides built-in guidance for discovering commands, understanding usage, and learning expected argument and output patterns.
+
+Help is part of the public CLI contract and must be:
+
+* consistent across command groups
+* readable in a terminal
+* useful for both first-time and experienced users
+* aligned with the documented command surface
+
+Help must describe the CLI as specified, not expose internal implementation details.
+
+---
+
+## Help Entry Points
+
+The CLI supports help through both explicit `help` commands and `--help`.
+
+### Root help
+
+```text
+llamarc42 help
+llamarc42 --help
+```
+
+These are equivalent.
+
+---
+
+### Command-group help
+
+```text
+llamarc42 <command> help
+llamarc42 <command> --help
+```
+
+These are equivalent.
+
+Examples:
+
+```text
+llamarc42 chat help
+llamarc42 chat --help
+
+llamarc42 sessions help
+llamarc42 sessions --help
+```
+
+---
+
+### Subcommand help
+
+```text
+llamarc42 <command> <subcommand> --help
+```
+
+Example:
+
+```text
+llamarc42 sessions resume --help
+```
+
+`<command> <subcommand> help` is optional for future support, but `--help` is the required canonical form at the subcommand level.
+
+---
+
+## Help Behavior
+
+### Root help behavior
+
+Root help must display:
+
+* CLI name and purpose
+* current top-level commands
+* short description of each top-level command
+* canonical usage patterns
+* how to get more help for specific commands
+
+---
+
+### Command-group help behavior
+
+Command-group help must display:
+
+* command purpose
+* available subcommands, if any
+* supported arguments and flags
+* shared flags relevant to the command
+* examples for common workflows
+
+---
+
+### Subcommand help behavior
+
+Subcommand help must display:
+
+* exact usage syntax
+* required and optional arguments
+* supported shared flags and command-specific constraints
+* behavior notes for interactive vs non-interactive use, if relevant
+* examples
+
+---
+
+## Help Content Structure
+
+Help output should follow a consistent structure.
+
+### Recommended structure
+
+```text
+NAME
+  <command name> - <short purpose>
+
+USAGE
+  <usage forms>
+
+DESCRIPTION
+  <short explanation>
+
+COMMANDS
+  <subcommands, if applicable>
+
+ARGUMENTS
+  <required positional arguments>
+
+FLAGS
+  <supported flags>
+
+EXAMPLES
+  <canonical examples>
+```
+
+Not every section is required for every command, but the ordering should remain consistent where sections are present.
+
+---
+
+## Required Help Content by Level
+
+## Root level
+
+Must include:
+
+* CLI name
+* short overall description
+* top-level command list
+* one-line description for each top-level command
+* example of command-specific help usage
+
+Example topics:
+
+* `chat`
+* `sessions`
+* `docs`
+* `project`
+* `help`
+* `version`
+
+---
+
+## Command-group level
+
+Must include:
+
+* command purpose
+* subcommand list, where applicable
+* usage summary
+* examples
+* supported shared flags relevant to that command
+
+Examples:
+
+* `chat` help should explain one-shot vs interactive use
+* `sessions` help should list `list`, `new`, `resume`, `show`, `summarize`
+* `docs` help should list `list`, `show`
+* `project` help should list `show`
+
+---
+
+## Subcommand level
+
+Must include:
+
+* exact usage line
+* description of target arguments
+* output mode support, where constrained
+* ambiguity behavior, where relevant
+* examples
+
+Examples:
+
+* `sessions resume --help` should explain `<session-id|name>`
+* `docs show --help` should explain `<path|document-id>`
+
+---
+
+## `help` Command Scope
+
+The `help` command is an informational surface only.
+
+It does not:
+
+* validate the project
+* inspect sessions
+* resolve command targets
+* perform command execution
+
+It only explains the CLI surface.
+
+---
+
+## `--help` Behavior
+
+When `--help` is present:
+
+* the CLI must display help for the relevant command scope
+* the CLI must not execute the normal command action
+* the CLI should return success exit code unless help resolution itself fails
+
+Examples:
+
+```text
+llamarc42 chat --help
+```
+
+Must show help for `chat`, not enter chat mode.
+
+```text
+llamarc42 sessions resume --help
+```
+
+Must show help for `sessions resume`, not attempt to resolve a session.
+
+---
+
+## Examples in Help Output
+
+Examples are required in help output because the CLI is workflow-oriented.
+
+Examples should be:
+
+* short
+* canonical
+* realistic
+* aligned with the current spec
+
+Examples must not:
+
+* use undocumented commands
+* imply deferred workflows are active
+* rely on implementation details not in the spec
+
+---
+
+## Example Help Expectations by Command
+
+### `chat`
+
+Should include examples for:
+
+* one-shot prompt
+* interactive mode
+* named session
+* explicit session
+* piped input
+
+Example commands:
+
+```text
+llamarc42 chat "summarize the current docs"
+llamarc42 chat
+llamarc42 chat --name architecture
+git diff | llamarc42 chat
+```
+
+---
+
+### `sessions`
+
+Should include examples for:
+
+* listing sessions
+* creating a named session
+* resuming by name
+* showing a session
+
+Example commands:
+
+```text
+llamarc42 sessions list
+llamarc42 sessions new --name architecture
+llamarc42 sessions resume architecture
+llamarc42 sessions show session-20260401-001
+```
+
+---
+
+### `docs`
+
+Should include examples for:
+
+* listing docs
+* showing a document
+
+Example commands:
+
+```text
+llamarc42 docs list
+llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
+
+---
+
+### `project`
+
+Should include examples for:
+
+* showing project context
+
+Example commands:
+
+```text
+llamarc42 project show
+```
+
+---
+
+## Help Output and Formatting Rules
+
+### Default format
+
+Help output is human-readable plain text.
+
+### Output modes
+
+Help does not currently require `table` or `json` output.
+
+For this milestone, help is specified as a human-oriented terminal surface.
+
+If structured help is introduced later, it should be treated as a separate capability.
+
+### Color
+
+Help output may use color in interactive terminals if color is supported, but it must remain readable without color and respect `--no-color`.
+
+---
+
+## Error Handling for Help
+
+Help lookup failures should be rare, but must still be explicit.
+
+Examples:
+
+```text
+Error: unknown command 'sesions'.
+
+Did you mean 'sessions'?
+```
+
+```text
+Error: no help is available for subcommand 'project validate'.
+This command is deferred and not part of the current CLI surface.
+```
+
+---
+
+## Example Root Help Structure
+
+```text
+NAME
+  llamarc42 - local-first documentation-driven AI CLI
+
+USAGE
+  llamarc42 <command> [options]
+  llamarc42 help
+  llamarc42 --help
+
+COMMANDS
+  chat       Start one-shot or interactive conversation workflows
+  sessions   Manage persisted conversation sessions
+  docs       Inspect project documentation
+  project    Inspect current project context
+  help       Show CLI help
+  version    Show CLI version
+
+EXAMPLES
+  llamarc42 chat "summarize the current docs"
+  llamarc42 sessions list
+  llamarc42 docs list
+  llamarc42 project show
+  llamarc42 chat --help
+```
+
+---
+
+## Example Command Help Structure
+
+### `llamarc42 sessions --help`
+
+```text
+NAME
+  sessions - manage persisted conversation sessions
+
+USAGE
+  llamarc42 sessions list
+  llamarc42 sessions new [--name <name>]
+  llamarc42 sessions resume <session-id|name>
+  llamarc42 sessions show <session-id|name>
+  llamarc42 sessions summarize <session-id|name>
+
+DESCRIPTION
+  Manage session lifecycle and continuity for local project conversations.
+
+COMMANDS
+  list        List sessions
+  new         Create a new session
+  resume      Resume a session in interactive chat
+  show        Show session metadata and summary
+  summarize   Generate or display a session summary
+
+EXAMPLES
+  llamarc42 sessions list
+  llamarc42 sessions new --name architecture
+  llamarc42 sessions resume architecture
+```
+
+---
+
+## Example Subcommand Help Structure
+
+### `llamarc42 docs show --help`
+
+```text
+NAME
+  docs show - display a documentation artifact
+
+USAGE
+  llamarc42 docs show <path|document-id>
+
+ARGUMENTS
+  <path|document-id>   Document target to display
+
+DESCRIPTION
+  Show the contents of a project documentation artifact by path or stable identifier.
+
+FLAGS
+  --output <plain|json>
+  --verbosity <quiet|normal|detailed|diagnostic>
+  --working-directory <path>
+  --no-color
+
+EXAMPLES
+  llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
