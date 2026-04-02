@@ -2460,3 +2460,306 @@ Example:
   }
 }
 ```
+
+# 11. Error Model and Exit Codes
+
+## Purpose
+
+The CLI must report failures in a way that is:
+
+* explicit for humans
+* actionable for developers
+* stable for automation
+* consistent across commands
+
+Errors must help the user understand:
+
+* what failed
+* why it failed
+* what to do next
+
+The CLI surface must not hide or silently swallow failures originating in Core.
+
+---
+
+## Error Design Principles
+
+### Explicit
+
+Errors must clearly state that the command failed.
+
+---
+
+### Actionable
+
+Errors should include remediation guidance when reasonable.
+
+---
+
+### Deterministic
+
+The same failure condition should produce the same error category and exit code.
+
+---
+
+### Surface-safe
+
+The CLI may translate internal failures into user-facing errors, but must not invent misleading causes or discard important context.
+
+---
+
+## Error Categories
+
+### 1. Usage Error (`usage`)
+
+The command was invoked incorrectly.
+
+Examples:
+
+* missing required argument
+* unsupported flag combination
+* unknown option
+* unsupported output mode
+
+---
+
+### 2. Not Found Error (`not_found`)
+
+A required target could not be resolved.
+
+Examples:
+
+* session not found
+* document not found
+* working directory not found
+
+---
+
+### 3. Ambiguity Error (`ambiguity`)
+
+A target resolved to multiple valid matches.
+
+(See **Section 10 — Ambiguity Handling**)
+
+---
+
+### 4. Validation Error (`validation`)
+
+The operation completed, but the subject is not valid.
+
+Defined now for future use (validate commands are currently deferred).
+
+---
+
+### 5. Execution Error (`execution`)
+
+The command failed during operation.
+
+Examples:
+
+* unreadable file
+* storage failure
+* serialization failure
+
+---
+
+### 6. Internal Error (`internal`)
+
+Unexpected failure not attributable to user input.
+
+Examples:
+
+* unhandled Core exception
+* invariant violation
+
+---
+
+## Human-Readable Error Style
+
+### Format
+
+```text
+Error: <summary>
+
+<optional details>
+
+<optional suggestion>
+```
+
+---
+
+## Examples
+
+### Usage error
+
+```text
+Error: '--session' and '--name' cannot be used together.
+
+Use '--session' or '--name', not both.
+```
+
+---
+
+### Not found
+
+```text
+Error: session 'architecture' was not found.
+
+Use 'llamarc42 sessions list' to inspect available sessions.
+```
+
+---
+
+### Ambiguity
+
+```text
+Error: session name 'architecture' is ambiguous.
+
+Matches:
+- session-20260401-001  architecture
+- session-20260329-004  architecture
+
+Re-run with a session ID.
+```
+
+---
+
+### Execution error
+
+```text
+Error: could not read document 'docs/global/principles.md'.
+
+Check file permissions and try again.
+```
+
+---
+
+## JSON Error Output
+
+When `--output json` is used:
+
+* output must be valid JSON
+* no prose outside JSON
+* errors must use structured format
+* exit codes still apply
+
+---
+
+## JSON Error Shape
+
+```json
+{
+  "command": "sessions resume",
+  "status": "error",
+  "error": {
+    "code": "ambiguous_target",
+    "category": "ambiguity",
+    "message": "Session name 'architecture' is ambiguous.",
+    "details": {},
+    "suggestion": "Re-run with a session ID."
+  }
+}
+```
+
+---
+
+## JSON Error Fields
+
+| Field        | Description                        |
+| ------------ | ---------------------------------- |
+| `code`       | stable machine-readable identifier |
+| `category`   | error category                     |
+| `message`    | human-readable explanation         |
+| `details`    | structured context                 |
+| `suggestion` | remediation guidance               |
+
+---
+
+## Exit Codes
+
+| Code | Category   | Meaning                        |
+| ---- | ---------- | ------------------------------ |
+| 0    | success    | command completed successfully |
+| 2    | usage      | invalid invocation             |
+| 3    | not_found  | target not found               |
+| 4    | ambiguity  | multiple matches               |
+| 5    | validation | validation failed              |
+| 6    | execution  | runtime failure                |
+| 7    | internal   | unexpected failure             |
+
+---
+
+## Exit Code Rules
+
+### Success
+
+* return `0`
+
+---
+
+### Usage
+
+* return `2`
+
+---
+
+### Not found
+
+* return `3`
+
+---
+
+### Ambiguity
+
+* return `4`
+
+---
+
+### Validation
+
+* return `5`
+
+---
+
+### Execution
+
+* return `6`
+
+---
+
+### Internal
+
+* return `7`
+
+---
+
+## Core Error Translation
+
+The CLI must map Core errors to CLI categories without losing meaning.
+
+### Examples
+
+| Core Condition       | CLI Category | Exit |
+| -------------------- | ------------ | ---- |
+| session not found    | not_found    | 3    |
+| multiple matches     | ambiguity    | 4    |
+| file read failure    | execution    | 6    |
+| unexpected exception | internal     | 7    |
+
+---
+
+## Output Rules
+
+### Human-readable modes
+
+* readable
+* actionable
+* may include suggestions
+
+---
+
+### JSON mode
+
+* machine-safe
+* no extra text
+* stable structure
