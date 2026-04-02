@@ -3963,3 +3963,256 @@ llamarc42 project show
 ```text
 llamarc42 chat "Review this change for architectural drift."
 ```
+
+# 15. Canonical Examples
+
+## Purpose
+
+Canonical examples demonstrate the intended CLI workflows end-to-end.
+
+They serve as:
+
+* guidance for users
+* validation targets for implementers
+* reference scenarios for testing
+
+Examples must reflect the **current CLI contract only** and must not include deferred or undefined behavior.
+
+---
+
+## Chat Workflows
+
+### One-shot usage
+
+```text
+llamarc42 chat "summarize the current documentation structure"
+```
+
+---
+
+### Interactive session
+
+```text
+llamarc42 chat
+```
+
+---
+
+### Named session workflow
+
+```text
+llamarc42 chat --name architecture
+```
+
+---
+
+### Explicit session continuation
+
+```text
+llamarc42 chat --session session-20260401-001 "continue previous discussion"
+```
+
+---
+
+### Piped input
+
+```text
+git diff | llamarc42 chat
+```
+
+---
+
+### Non-interactive usage
+
+```text
+llamarc42 chat --non-interactive "summarize the project"
+```
+
+---
+
+### JSON output
+
+```text
+llamarc42 chat --output json "summarize the project"
+```
+
+---
+
+## Session Workflows
+
+### List sessions
+
+```text
+llamarc42 sessions list
+```
+
+---
+
+### Create a new session
+
+```text
+llamarc42 sessions new
+llamarc42 sessions new --name architecture
+```
+
+---
+
+### Resume a session
+
+```text
+llamarc42 sessions resume architecture
+```
+
+---
+
+### Resume by ID
+
+```text
+llamarc42 sessions resume session-20260401-001
+```
+
+---
+
+### Show session details
+
+```text
+llamarc42 sessions show architecture
+```
+
+---
+
+### Summarize a session
+
+```text
+llamarc42 sessions summarize architecture
+```
+
+---
+
+## Documentation Workflows
+
+### List documentation
+
+```text
+llamarc42 docs list
+```
+
+---
+
+### Show a document by path
+
+```text
+llamarc42 docs show docs/projects/llamarc42/architecture/boundaries.md
+```
+
+---
+
+### Show a document by identifier
+
+```text
+llamarc42 docs show architecture-boundaries
+```
+
+---
+
+## Project Workflows
+
+### Show current project
+
+```text
+llamarc42 project show
+```
+
+---
+
+### Use alternate working directory
+
+```text
+llamarc42 --working-directory ./examples/project-a project show
+```
+
+---
+
+## Output and Automation Workflows
+
+### JSON output for sessions
+
+```text
+llamarc42 sessions list --output json
+```
+
+---
+
+### JSON output for docs
+
+```text
+llamarc42 docs list --output json
+```
+
+---
+
+### Redirect output to file
+
+```text
+llamarc42 sessions list > sessions.txt
+```
+
+---
+
+### Disable color
+
+```text
+llamarc42 docs list --no-color
+```
+
+---
+
+## Verbosity Examples
+
+### Detailed output
+
+```text
+llamarc42 project show --verbosity detailed
+```
+
+---
+
+### Diagnostic output
+
+```text
+llamarc42 sessions resume architecture --verbosity diagnostic
+```
+
+---
+
+## Ambiguity Handling Example
+
+```text
+llamarc42 sessions resume architecture
+```
+
+Result:
+
+```text
+Error: session name 'architecture' is ambiguous.
+
+Matches:
+- session-20260401-001  architecture
+- session-20260329-004  architecture
+
+Re-run with a session ID.
+```
+
+---
+
+## Non-Interactive Failure Example
+
+```text
+llamarc42 chat --non-interactive
+```
+
+Result:
+
+```text
+Error: no prompt provided and interactive mode is disabled.
+```
