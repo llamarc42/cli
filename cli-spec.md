@@ -2763,3 +2763,459 @@ The CLI must map Core errors to CLI categories without losing meaning.
 * machine-safe
 * no extra text
 * stable structure
+
+# 12. Verbosity and Diagnostic Behavior
+
+## Purpose
+
+Verbosity controls how much supporting information the CLI surfaces alongside the primary command result.
+
+It exists to support:
+
+* concise everyday usage
+* deeper troubleshooting
+* explainability of command behavior
+* inspectability of retrieval-driven workflows
+
+Verbosity must not change command meaning or result. It changes only how much supporting information is surfaced.
+
+---
+
+## Supported Verbosity Levels
+
+```text
+quiet
+normal
+detailed
+diagnostic
+```
+
+These are selected using:
+
+```text
+--verbosity <quiet|normal|detailed|diagnostic>
+```
+
+If `--verbosity` is omitted, the command uses `normal`.
+
+---
+
+## Core Rules
+
+### Rule 1: verbosity changes detail, not behavior
+
+Verbosity must not change:
+
+* target resolution
+* session selection behavior
+* success vs failure outcome
+* output mode semantics
+* validation result
+* retrieval result selection logic
+
+It may change:
+
+* how much supporting context is shown
+* whether intermediate decisions are surfaced
+* how much operational detail is displayed
+
+---
+
+### Rule 2: structured output must remain clean
+
+When `--output json` is used:
+
+* stdout must remain valid JSON
+* verbosity must not inject prose or logs into stdout
+* any auxiliary diagnostic information must not corrupt the structured result
+
+---
+
+### Rule 3: verbosity must respect command scope
+
+Diagnostic output may explain how a command behaved, but it must not expose:
+
+* hidden chain-of-thought
+* private reasoning traces
+* internal speculative analysis
+* implementation details that violate architectural boundaries
+
+The CLI may explain **what it did** and **why a visible decision occurred**, but not expose hidden reasoning internals.
+
+---
+
+## Verbosity Levels
+
+## `quiet`
+
+### Purpose
+
+Minimal output for scripts or users who only want the final result.
+
+### Behavior
+
+* suppress non-essential informational output
+* show only:
+
+  * final result, or
+  * fatal error output
+
+### Use cases
+
+* automation-friendly human usage
+* reduced-noise terminal workflows
+
+### Notes
+
+`quiet` must not suppress structured error output in `json` mode.
+
+---
+
+## `normal`
+
+### Purpose
+
+Default user-facing behavior.
+
+### Behavior
+
+* show the primary result in a readable way
+* include only the level of context needed to understand the result
+
+### Use cases
+
+* standard daily CLI usage
+* default terminal interaction
+
+---
+
+## `detailed`
+
+### Purpose
+
+Show additional supporting information useful for understanding command behavior.
+
+### Behavior
+
+May include:
+
+* resolved target information
+* selected session identity
+* relevant file or path resolution details
+* high-level command steps
+* additional metadata associated with the result
+
+### Use cases
+
+* troubleshooting command usage
+* understanding what the CLI resolved or selected
+
+### Examples
+
+For `sessions resume`, detailed output may include:
+
+* whether resolution matched by ID or by name
+* which session was resumed
+
+For `project show`, detailed output may include:
+
+* resolved project root
+* documentation root
+* discovered markers used to identify the project
+
+---
+
+## `diagnostic`
+
+### Purpose
+
+Expose maximum safe troubleshooting detail for advanced inspection and explainability.
+
+### Behavior
+
+May include:
+
+* command resolution steps
+* target matching details
+* ambiguity candidate sets
+* project/document discovery details
+* retrieval-context selection summary
+* why visible artifacts were included in the effective context
+* high-level explanation of surfaced command decisions
+
+### Use cases
+
+* debugging CLI behavior
+* retrieval explainability
+* inspecting why a command selected certain visible inputs
+
+### Important boundary
+
+`diagnostic` is **not** permission to expose hidden reasoning.
+
+It may include:
+
+* “selected documents A and B because they matched the project scope and command target”
+* “session name matched two sessions; command entered ambiguity flow”
+
+It must not include:
+
+* hidden internal reasoning text
+* raw chain-of-thought
+* speculative private deliberation
+* internal-only prompts or hidden model scaffolding
+
+---
+
+## Safe Diagnostic Explainability
+
+Because llamarc42 is retrieval-based and documentation-driven, diagnostic output may provide bounded explainability.
+
+This may include:
+
+* what visible artifacts were selected
+* what visible rules were applied
+* what command-path decisions were taken
+* why an ambiguity or failure occurred
+* whether context was built fresh or reused, if the command exposes such a concept later
+
+This must remain:
+
+* deterministic
+* inspectable
+* artifact-grounded
+* free of hidden reasoning traces
+
+---
+
+## Stdout vs Stderr Expectations
+
+## Stdout
+
+Stdout is the primary result channel.
+
+It should contain:
+
+* normal command results
+* human-readable output in `plain` or `table` mode
+* structured result objects in `json` mode
+
+---
+
+## Stderr
+
+Stderr is the auxiliary diagnostics and error channel.
+
+It may contain:
+
+* human-readable errors
+* warnings
+* diagnostic notes
+* verbose operational messages, where appropriate
+
+### Rule for JSON mode
+
+When `--output json` is used:
+
+* stdout must contain only the JSON result or JSON error
+* any non-JSON diagnostics must not be written to stdout
+* if diagnostics are emitted separately, they must go to stderr
+
+This preserves machine-safe parsing.
+
+---
+
+## Relationship Between Verbosity and Output Modes
+
+### `plain`
+
+All verbosity levels are allowed.
+
+* `quiet` → minimal human-readable output
+* `normal` → standard readable output
+* `detailed` → extra supporting context
+* `diagnostic` → max safe detail
+
+---
+
+### `table`
+
+Supported only for commands that support table output.
+
+Verbosity may affect:
+
+* whether optional columns appear
+* whether supplemental notes are shown outside the table
+
+But it must not make tabular output confusing or unstable.
+
+---
+
+### `json`
+
+All verbosity levels may be accepted, but:
+
+* stdout JSON must remain valid
+* verbosity must not alter the command result schema unpredictably
+* diagnostic detail, if included, must be deliberately structured
+
+Recommended approach:
+
+* primary result remains under `data`
+* verbosity-driven supporting metadata, if surfaced in JSON, should be placed under a predictable field such as `meta`
+
+Example:
+
+```json
+{
+  "command": "project show",
+  "status": "success",
+  "data": {
+    "project": {
+      "root": "/repo/llamarc42"
+    }
+  },
+  "meta": {
+    "verbosity": "diagnostic",
+    "resolution": {
+      "project_root_source": "working-directory"
+    }
+  }
+}
+```
+
+If `meta` is omitted at lower verbosity levels, that omission must be intentional and documented as allowed.
+
+---
+
+## Allowed Diagnostic Content by Command Type
+
+## Conversational commands (`chat`)
+
+May include:
+
+* selected session identity
+* whether execution was one-shot or interactive
+* whether stdin or positional prompt was used
+* visible context artifact summary
+* bounded explanation of visible retrieval selection
+
+Must not include:
+
+* hidden prompt internals
+* hidden reasoning traces
+
+---
+
+## Session commands (`sessions`)
+
+May include:
+
+* name vs ID resolution details
+* ambiguity candidate sets
+* session metadata used in resolution
+
+---
+
+## Documentation commands (`docs`)
+
+May include:
+
+* document resolution path
+* identifier match details
+* discovery source for listed documents
+
+---
+
+## Project commands (`project`)
+
+May include:
+
+* project root discovery details
+* detected project markers
+* resolved documentation roots or related paths
+
+---
+
+## Warnings
+
+Warnings are non-fatal signals and may be surfaced in `normal`, `detailed`, or `diagnostic` output where appropriate.
+
+Examples:
+
+* deprecated command form in a future version
+* partial project discovery
+* missing optional metadata
+
+Warnings must not be used to hide real failures.
+
+In `json` mode, warnings should be structured and included predictably, for example:
+
+```json
+{
+  "command": "project show",
+  "status": "success",
+  "data": {},
+  "warnings": [
+    {
+      "code": "partial_project_metadata",
+      "message": "Project root was resolved, but no explicit project identifier was found."
+    }
+  ]
+}
+```
+
+---
+
+## Examples
+
+## Normal output example
+
+```text
+$ llamarc42 sessions resume architecture
+
+Resumed session: architecture
+Id: session-20260401-001
+```
+
+---
+
+## Diagnostic output example
+
+```text
+$ llamarc42 sessions resume architecture --verbosity diagnostic
+
+Resolved target type: session
+Resolution strategy: exact id, then name
+Name match count: 2
+
+Ambiguous session name 'architecture'
+
+Matches:
+- session-20260401-001  architecture  last active: 2026-04-01T09:12:00
+- session-20260329-004  architecture  last active: 2026-03-29T16:48:00
+```
+
+---
+
+## JSON diagnostic example
+
+```json
+{
+  "command": "docs show",
+  "status": "success",
+  "data": {
+    "document": {
+      "path": "docs/projects/llamarc42/architecture/boundaries.md",
+      "content": "..."
+    }
+  },
+  "meta": {
+    "verbosity": "diagnostic",
+    "resolution": {
+      "input": "boundaries",
+      "match_strategy": "document_id"
+    }
+  }
+}
+```
