@@ -1945,3 +1945,316 @@ JSON mode equivalent:
   }
 }
 ```
+
+# 9. Interactivity Model
+
+## Purpose
+
+The CLI must behave predictably in both:
+
+* **interactive terminal usage** (human-driven workflows)
+* **non-interactive execution** (automation, scripts, pipelines)
+
+This section defines how the CLI detects and responds to these contexts.
+
+---
+
+## Mode Definitions
+
+### Interactive Mode
+
+A command is considered **interactive** when:
+
+* stdin is attached to a terminal
+* stdout is attached to a terminal
+* `--non-interactive` is **not** specified
+
+---
+
+### Non-Interactive Mode
+
+A command is considered **non-interactive** when any of the following are true:
+
+* stdin is redirected or piped
+* stdout is redirected or piped
+* `--non-interactive` is specified
+
+---
+
+## Mode Detection Rules
+
+### Rule 1: Explicit override takes precedence
+
+```text
+--non-interactive
+```
+
+Always forces non-interactive behavior regardless of terminal state.
+
+---
+
+### Rule 2: I/O redirection implies non-interactive
+
+If either:
+
+* stdin is piped
+* stdout is redirected
+
+The CLI must treat the command as non-interactive.
+
+---
+
+### Rule 3: Terminal presence enables interactive mode
+
+Interactive mode is only allowed when:
+
+* stdin is a TTY
+* stdout is a TTY
+* no override flag is present
+
+---
+
+## Prompting Rules
+
+### Interactive Mode
+
+Prompting is allowed only in interactive mode.
+
+The CLI may prompt for:
+
+* ambiguity resolution (e.g., multiple session matches)
+* selection from known options
+* confirmation where explicitly defined (none currently in scope)
+
+Prompting must:
+
+* be deterministic
+* present clear options
+* allow user cancellation
+
+---
+
+### Non-Interactive Mode
+
+Prompting is **never allowed**.
+
+If user input is required:
+
+* the command must fail
+* the error must explain what input is missing
+
+---
+
+## Behavior When Input is Missing
+
+### Interactive Mode
+
+If required input is missing and the command supports interactive fallback:
+
+* the CLI may prompt the user
+* or enter an interactive workflow (e.g., `chat`)
+
+Example:
+
+```text
+llamarc42 chat
+```
+
+→ enters interactive chat session
+
+---
+
+### Non-Interactive Mode
+
+If required input is missing:
+
+* the command must fail
+* the command must not attempt fallback
+* the error must be actionable
+
+Example:
+
+```text
+llamarc42 chat --non-interactive
+```
+
+Result:
+
+```text
+Error: no prompt provided and interactive mode is disabled.
+```
+
+---
+
+## Behavior with Piped Input
+
+If stdin is piped:
+
+* the command must operate in **one-shot mode**
+* the command must not enter interactive mode
+* the command must not prompt
+
+Examples:
+
+```text
+git diff | llamarc42 chat
+Get-Content file.md | llamarc42 chat
+```
+
+Behavior:
+
+* input is consumed once
+* output is produced once
+* command exits
+
+---
+
+## Behavior with Redirected Output
+
+If stdout is redirected:
+
+* the command must operate in non-interactive mode
+* the command must not prompt
+* output must remain valid for the selected format
+
+Example:
+
+```text
+llamarc42 sessions list > sessions.txt
+```
+
+---
+
+## Ambiguity Handling
+
+### Interactive Mode
+
+* display matching results
+* allow user selection
+
+---
+
+### Non-Interactive Mode
+
+* display matching results
+* fail explicitly
+* do not prompt
+
+---
+
+## Relationship to Output Modes
+
+### JSON Output
+
+When:
+
+```text
+--output json
+```
+
+is specified:
+
+* the command must behave as non-interactive
+* the command must not prompt
+* output must be a single valid JSON document
+
+---
+
+## Command Behavior Summary
+
+| Condition           | Mode            | Behavior          |
+| ------------------- | --------------- | ----------------- |
+| TTY + no flags      | interactive     | prompts allowed   |
+| stdin piped         | non-interactive | one-shot          |
+| stdout redirected   | non-interactive | no prompts        |
+| `--non-interactive` | non-interactive | no prompts        |
+| `--output json`     | non-interactive | structured output |
+
+---
+
+## Error Handling Expectations
+
+Errors in non-interactive mode must:
+
+* not require user input
+* include clear remediation steps
+* be deterministic
+
+Example:
+
+```text
+Error: session name 'architecture' is ambiguous.
+Matches:
+- session-001
+- session-002
+
+Re-run with a session ID.
+```
+
+---
+
+## Examples
+
+### Interactive usage
+
+```text
+llamarc42 chat
+```
+
+* enters interactive session
+* allows prompts and selections
+
+---
+
+### One-shot usage
+
+```text
+llamarc42 chat "summarize docs"
+```
+
+* processes once
+* exits
+
+---
+
+### Piped usage
+
+```text
+git diff | llamarc42 chat
+```
+
+* one-shot
+* no prompts
+
+---
+
+### Non-interactive flag
+
+```text
+llamarc42 chat --non-interactive "summarize docs"
+```
+
+* no prompts
+* deterministic output
+
+---
+
+### Redirected output
+
+```text
+llamarc42 sessions list > sessions.txt
+```
+
+* no prompts
+* plain output written to file
+
+---
+
+### JSON automation
+
+```text
+llamarc42 sessions list --output json
+```
+
+* machine-readable
+* no prompts
