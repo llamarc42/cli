@@ -2258,3 +2258,205 @@ llamarc42 sessions list --output json
 
 * machine-readable
 * no prompts
+
+# 10. Ambiguity Handling
+
+## Purpose
+
+Ambiguity is expected in a documentation-driven and session-driven CLI.
+
+The CLI must handle ambiguity consistently across commands so that:
+
+* interactive use remains efficient
+* automation remains deterministic
+* users receive actionable guidance
+
+Ambiguity handling applies to any command target that may resolve to multiple matches, including:
+
+* session names
+* document identifiers
+* document paths or shorthand references
+* future named targets introduced by the CLI
+
+---
+
+## Core Rule
+
+If a user-supplied target resolves to more than one valid match, the CLI must treat the result as ambiguous.
+
+The CLI must never silently choose one match unless a command explicitly documents deterministic precedence.
+
+---
+
+## Interactive Behavior
+
+In interactive mode, the CLI may support disambiguation by:
+
+* displaying the matching results
+* allowing the user to select one match interactively
+
+Interactive disambiguation must:
+
+* show enough information for the user to distinguish matches
+* use a deterministic presentation order
+* allow the user to cancel
+
+If the user cancels, the command must exit without applying a selection.
+
+---
+
+## Non-Interactive Behavior
+
+In non-interactive mode, the CLI must not prompt.
+
+If ambiguity occurs, the command must:
+
+* display the matching results
+* fail explicitly
+* explain how to disambiguate
+* return a non-zero exit code
+
+The CLI must never guess in automation contexts.
+
+---
+
+## Ambiguous Session Handling
+
+When a session name matches multiple sessions:
+
+### Interactive mode
+
+* display matching sessions
+* may allow the user to select one
+
+### Non-interactive mode
+
+* display matching sessions
+* fail explicitly
+* instruct the user to re-run with a session ID
+
+Example:
+
+```text
+Error: session name 'architecture' is ambiguous.
+
+Matches:
+- session-20260401-001  architecture  last active: 2026-04-01T09:12:00
+- session-20260329-004  architecture  last active: 2026-03-29T16:48:00
+
+Re-run with a session ID.
+```
+
+---
+
+## Ambiguous Document Handling
+
+When a document target matches multiple documents:
+
+### Interactive mode
+
+* display matching documents
+* may allow the user to select one
+
+### Non-interactive mode
+
+* display matching documents
+* fail explicitly
+* instruct the user to re-run with a full path or stable document identifier
+
+Example:
+
+```text
+Error: document target 'architecture' is ambiguous.
+
+Matches:
+- docs/projects/llamarc42/architecture/overview.md
+- docs/projects/llamarc42/architecture/boundaries.md
+
+Re-run with a full path or document identifier.
+```
+
+---
+
+## Display Requirements for Matches
+
+When ambiguity occurs, the CLI should display enough metadata to help the user make a correct choice.
+
+### Session matches should include
+
+* session ID
+* session name
+* last activity timestamp
+
+### Document matches should include
+
+* relative path
+* document identifier, if available
+* scope/category, if available
+
+---
+
+## Ordering Rules
+
+When multiple matches are displayed, ordering should be deterministic.
+
+Recommended ordering:
+
+### Sessions
+
+* most recently active first
+
+### Documents
+
+* lexical path order unless a stronger command-specific rule is defined
+
+---
+
+## Error Messaging Requirements
+
+Ambiguity errors must be:
+
+* explicit
+* actionable
+* deterministic
+
+They must include:
+
+* the target the user provided
+* that the result was ambiguous
+* the matching candidates
+* how to re-run unambiguously
+
+---
+
+## JSON Error Shape
+
+In `--output json` mode, ambiguity must be returned as structured JSON.
+
+Example:
+
+```json
+{
+  "command": "sessions resume",
+  "status": "error",
+  "error": {
+    "code": "ambiguous_target",
+    "message": "Session name 'architecture' is ambiguous.",
+    "details": {
+      "target": "architecture",
+      "target_type": "session",
+      "matches": [
+        {
+          "id": "session-20260401-001",
+          "name": "architecture"
+        },
+        {
+          "id": "session-20260329-004",
+          "name": "architecture"
+        }
+      ]
+    },
+    "suggestion": "Re-run with a session ID."
+  }
+}
+```
