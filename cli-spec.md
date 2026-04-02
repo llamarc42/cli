@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft — in progress
+Final — Milestone 1 (CLI Specification v0.1)
 
 ---
 
@@ -109,19 +109,19 @@ llamarc42 version
 
 ### `chat`
 
-Primary conversational workflow.
+Handles conversational workflows.
 
 ### `sessions`
 
-Session lifecycle and continuity.
+Manages session lifecycle and continuity.
 
 ### `docs`
 
-Documentation inspection and validation.
+Handles documentation inspection.
 
 ### `project`
 
-Project inspection and validation.
+Handles project inspection.
 
 ### `help`
 
@@ -135,7 +135,7 @@ CLI version output.
 
 ## Command Design Rules
 
-### A command is top-level only if:
+### A command is top-level only if
 
 * represents a primary user workflow
 * has a clear responsibility boundary
@@ -144,7 +144,7 @@ CLI version output.
 
 ---
 
-### A command is NOT top-level if:
+### A command is NOT top-level if
 
 * it exposes internal concepts (retrieval, prompt, etc.)
 * it supports another workflow
@@ -198,7 +198,7 @@ llamarc42 chat
 llamarc42 chat "summarize the retrieval design"
 
 llamarc42 sessions list
-llamarc42 docs validate
+llamarc42 docs list
 llamarc42 project show
 ```
 
@@ -323,6 +323,8 @@ If both are present:
 ---
 
 ## Default Session Behavior
+
+The definition of "last active session" is provided by Core and must not be inferred or tracked independently by the CLI.
 
 ### One-shot
 
@@ -750,12 +752,12 @@ These workflows may be introduced in a future milestone once:
 
 ## Boundary Between `docs` and `project`
 
-### Use `docs` when:
+### Use `docs` when
 
 * inspecting documentation artifacts
 * viewing document contents
 
-### Use `project` when:
+### Use `project` when
 
 * inspecting current project context
 * understanding how the CLI resolved the project
@@ -1729,7 +1731,7 @@ For single-target commands:
 }
 ```
 
-This is a recommended consistency pattern for the CLI as a whole.
+This structure should be used consistently across commands unless a command explicitly documents a deviation.
 
 ---
 
@@ -1995,6 +1997,8 @@ A command is considered **interactive** when:
 ---
 
 ### Non-Interactive Mode
+
+The CLI must not attempt to recover or infer missing input in non-interactive mode.
 
 A command is considered **non-interactive** when any of the following are true:
 
@@ -2572,6 +2576,10 @@ The operation completed, but the subject is not valid.
 
 Defined now for future use (validate commands are currently deferred).
 
+### Note
+
+Validation errors are defined for future commands and are not currently emitted by this CLI surface, as validation workflows are deferred for this milestone.
+
 ---
 
 ### 5. Execution Error (`execution`)
@@ -3072,6 +3080,10 @@ Verbosity may affect:
 
 But it must not make tabular output confusing or unstable.
 
+Core columns must always be present regardless of verbosity level.
+
+Verbosity may add additional columns, but must not remove or alter the meaning of existing columns.
+
 ---
 
 ### `json`
@@ -3082,7 +3094,9 @@ All verbosity levels may be accepted, but:
 * verbosity must not alter the command result schema unpredictably
 * diagnostic detail, if included, must be deliberately structured
 
-Recommended approach:
+If verbosity-related metadata is included in JSON output, it must be placed under a top-level `meta` field.
+
+The presence of `meta` is optional, but when used, its structure must be predictable and consistent.
 
 * primary result remains under `data`
 * verbosity-driven supporting metadata, if surfaced in JSON, should be placed under a predictable field such as `meta`
@@ -3463,7 +3477,7 @@ When `--help` is present:
 
 * the CLI must display help for the relevant command scope
 * the CLI must not execute the normal command action
-* the CLI should return success exit code unless help resolution itself fails
+* the CLI must return exit code `0` unless help resolution itself fails
 
 Examples:
 
@@ -4387,6 +4401,16 @@ The CLI must:
 
 ## Error and Ambiguity Handling
 
+Ambiguity detection and candidate generation are owned by Core.
+
+The CLI is responsible only for:
+
+* presenting ambiguity results
+* enforcing interactive vs non-interactive behavior
+* handling user selection in interactive mode
+
+The CLI must not implement its own matching or resolution logic.
+
 The CLI must:
 
 * detect user input issues (usage errors)
@@ -4492,3 +4516,156 @@ If a proposed CLI feature:
 Then:
 
 > it is a Core concern, not a CLI concern
+
+# 17. Specification Finalization
+
+## Status
+
+This document is finalized as:
+
+> **CLI Specification v0.1 — Milestone 1**
+
+This version defines the **initial, implementation-ready CLI surface** for llamarc42.
+
+---
+
+## Authority
+
+This specification is the **source of truth** for CLI behavior.
+
+All CLI implementations must:
+
+* conform to this document
+* not introduce behavior outside this specification
+* not reinterpret defined behavior
+
+If implementation and specification diverge:
+
+> the specification takes precedence
+
+---
+
+## Change Policy
+
+Changes to this specification must be:
+
+* deliberate
+* documented
+* versioned
+
+### Non-breaking changes
+
+Allowed without version increment:
+
+* clarification of wording
+* additional examples
+* internal consistency improvements
+
+### Breaking changes
+
+Require version increment:
+
+* changes to command behavior
+* changes to argument semantics
+* changes to output structure (especially JSON)
+* changes to error categories or exit codes
+
+---
+
+## Versioning Strategy
+
+The CLI specification follows semantic intent (not strict semver yet):
+
+* **v0.x** → early evolution, controlled iteration
+* **v1.0** → stable public contract
+
+Breaking changes must increment the version.
+
+---
+
+## Relationship to Implementation
+
+This document defines:
+
+* CLI surface behavior
+* user-facing contracts
+* input/output expectations
+
+It does **not** define:
+
+* internal implementation details
+* parsing libraries or frameworks
+* Core internal structure
+
+Implementation must:
+
+* treat this spec as a contract
+* defer all logic to Core where defined
+* remain consistent across surfaces (CLI, PowerShell, future API/UI)
+
+---
+
+## Relationship to Future Milestones
+
+The following areas are intentionally deferred and will be introduced in future versions:
+
+* validation workflows
+* project scaffolding
+* review workflows as first-class commands
+* explicit context inspection commands
+
+These will be added only when:
+
+* Core behavior is defined
+* PowerShell and CLI are aligned
+* architectural boundaries are validated
+
+---
+
+## Implementation Readiness
+
+This specification is considered:
+
+> ✅ **Implementation-ready**
+
+It provides:
+
+* complete command definitions
+* argument and flag contracts
+* output and error contracts
+* interactivity rules
+* architectural boundaries
+
+Implementers should be able to:
+
+* build CLI parsing and routing
+* implement command handlers
+* validate behavior against examples
+* create test cases directly from this document
+
+---
+
+## Definition of Done
+
+This specification is complete when:
+
+* all command groups are defined
+* all behaviors are explicit and unambiguous
+* all deferred areas are documented
+* architectural boundaries are enforced
+* examples align with command contracts
+* the document is stable for implementation
+
+---
+
+## Final Note
+
+The CLI is a **surface over a documentation-driven system**.
+
+This specification ensures that:
+
+* behavior is predictable
+* workflows are consistent
+* architecture remains intact
+
+Future changes must preserve these principles.
