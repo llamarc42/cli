@@ -1,3 +1,11 @@
+> [!WARNING]
+> **Legacy, non-authoritative specification.** This document describes the
+> earlier local-copilot direction and must not be used to implement the current
+> llamarc42 framework. The accepted architecture and v0.1 contracts are owned by
+> [`llamarc42/docs`](https://github.com/llamarc42/docs). [CLI-01](https://github.com/llamarc42/cli/issues/20)
+> owns a reviewed replacement covering the planned `init` and `validate`
+> surface. The original text below is preserved for traceability.
+
 # CLI Specification — llamarc42
 
 ## Status
